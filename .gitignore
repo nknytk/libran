@@ -1,0 +1,8 @@
+*/__pycache__
+*.pyc
+*.swp
+data/user/*
+data/rental/*
+data/book/*
+data/*.pickle
+work/*
