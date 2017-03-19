@@ -27,6 +27,11 @@ class FileManager:
         dpath = os.path.join(self.data_dirs[data_type], str(new_id))
         return WorkingDirectory(dpath, self.data_dirs['work'])
 
+    def user_name(self, user_id):
+        name_file = os.path.join(self.data_dirs['user'], str(user_id), 'name.txt')
+        with open(name_file) as fp:
+            return fp.read().strip()
+
 
 class WorkingDirectory:
     def __init__(self, final_path, work_dir):
