@@ -14,6 +14,12 @@ class MessageProcessor:
     def __init__(self, config):
         self.config = config
 
+    def remove_prefix(self, txt, prefixes):
+        for prefix in prefixes:
+            if txt.startswith(prefix):
+                txt = txt[len(prefix):]
+        return txt
+
     def remove_suffix(self, txt, suffixes):
         for suffix in suffixes:
             if txt.endswith(suffix):

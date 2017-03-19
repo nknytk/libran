@@ -59,10 +59,13 @@ class Libran:
                 continue
 
             if self.command_to_exec is not None:
+                if self.message_processor.is_cancel(sentence_candidates):
+                    self.should_cancel = True
                 continue
 
             command = self.router.routes(*sentence_candidates)
-            self.command_to_exec = (command, sentence_candidates)
+            if command:
+                self.command_to_exec = (command, sentence_candidates)
 
         self.message_out.talk('おやすみなさい')
 

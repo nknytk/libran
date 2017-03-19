@@ -2,6 +2,7 @@
 
 import os
 import sys
+from time import sleep
 
 this_dir = sys.path.append(os.path.dirname(__file__))
 from base import Command
@@ -19,7 +20,7 @@ class Register(Command):
             response = self.ask_with_retry('お名前は、{}さんですね?'.format(name))
             if self.controller.message_processor.is_cancel(response):
                 self.cancel()
-            if not self.controller.messsage_processor.is_yes(response) == 'yes':
+            if not self.controller.message_processor.is_yes(response):
                 self.talk('失礼しました。')
                 continue
 
@@ -42,19 +43,19 @@ class Register(Command):
         # これまで取得してきたデータを永続化
         for dataset in datasets_to_commit:
             dataset.commit()
-        self.message_out.push('登録を受け付けました。ご協力、ありがとうございました')
+        self.talk('登録を受け付けました。ご協力、ありがとうございました')
 
         shoud_study_now = self.ask_with_retry('すぐに勉強したほうが良いですか？')
         if self.controller.message_processor.is_yes(shoud_study_now):
-            self._train(words)
+            self._train()
 
     def _ask_name(self):
         """ 名前を訊く """
         response = self.ask_with_retry('お名前を教えてください。')
         if self.controller.message_processor.is_cancel(response):
             self.cancel()
-        name = self.message_processor.remove_prefix(response, ('私は', '僕は', '俺は'))
-        name = self.message_processor.remove_suffix(response, ('です', 'だよ'))
+        name = self.controller.message_processor.remove_prefix(response[0], ('私は', '僕は', '俺は'))
+        name = self.controller.message_processor.remove_suffix(name, ('です', 'だよ'))
         return name
 
     def _take_photos(self, dataset):
@@ -75,7 +76,7 @@ class Register(Command):
         ]
 
         for tag, msg in operations:
-            if self.should_cancel:
+            if self.controller.should_cancel:
                 self.talk('ユーザー登録を中断します')
                 self.cancel()
 
@@ -84,7 +85,8 @@ class Register(Command):
             remaining_retry = 2
             while True:
                 img = self.controller.camera.capture()
-                img_gray_blured = self.controller.image_processor.blur(self.image_processor.gray(img))
+                img_gray = self.controller.image_processor.gray(img)
+                img_gray_blured = self.controller.image_processor.blur(img_gray)
                 face_rect = self.controller.image_processor.face_rect(img_gray_blured)
 
                 if face_rect is not None:
@@ -96,13 +98,13 @@ class Register(Command):
                 else:
                     remaining_retry -= 1
 
-            face_img = self.controller.image_processor.clip(img, face_rect, resize_to(100, 100))
+            face_img = self.controller.image_processor.clip(img, face_rect, resize_to=(100, 100))
             dataset.save_img(tag + '.jpg', img)
             dataset.save_img(tag + '_face.jpg', face_img)
 
     def _train(self):
         self.push_message('今からしばらく勉強します')
-        self.image_processor.train_face()
+        self.controller.image_processor.train_face()
         self.push_message('勉強が終わりました')
 
 

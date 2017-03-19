@@ -2,6 +2,7 @@
 
 import os
 import sys
+from time import sleep
 sys.path.append(os.path.dirname(__file__))
 from base import Command
 
@@ -18,10 +19,10 @@ class EquipmentRentalBase(Command):
                 self.talk('顔を特定できません。カメラの位置を調整してください。')
                 continue
 
-            face_img = self.image_processor.clip(img, face_rect)
-            user_id = self.image_processor.who_is(face_img)
+            face_img = self.controller.image_processor.clip(img, face_rect)
+            user_id = self.controller.image_processor.who_is(face_img)
 
-            book_rect = self.image_processor.book_rect(img_gray_blured, face_rect)
+            book_rect = self.controller.image_processor.book_rect(img_gray_blured, face_rect)
             if book_rect is None:
                 if i < max_try - 1:
                     self.talk('本を特定できません。本の位置を調整してください')
@@ -29,11 +30,10 @@ class EquipmentRentalBase(Command):
                 else:
                     self.push_message('本を特定できませんでした。')
 
-            self.image_processor.add_rect(img, face_rect, (255, 0, 0))  # 顔を青で囲う
+            self.controller.image_processor.add_rect(img, face_rect, (255, 0, 0))  # 顔を青で囲う
             if book_rect is not None:
-                self.image_processor.add_rect(img, book_rect, (0, 0, 255))  # 本を赤で囲う
-            with open(os.path.join(this_dir, 'data/user', str(user_id), 'name.txt')) as fp:
-                name = fp.read()
+                self.controller.image_processor.add_rect(img, book_rect, (0, 0, 255))  # 本を赤で囲う
+            name = self.controller.storage.user_name(user_id)
             return {'user_id': user_id, 'user_name': name, 'img': img}
 
         return {}

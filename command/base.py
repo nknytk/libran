@@ -15,9 +15,9 @@ class Command:
         try:
             self.command(sentence_candidates)
         except UserInturruptException:
-            self.controller.message_out.talk('キャンセルします')
+            self.talk('キャンセルします')
         except:
-            self.controller.message_out.talk('エラーが発生しました')
+            self.talk('エラーが発生しました')
             print(traceback.format_exc())
         finally:
             self.controller.is_in_command = False
@@ -36,7 +36,7 @@ class Command:
     def fetch_input(self, message=None, timeout=20):
         """ ユーザー入力を取得する """
         if message:
-            self.controller.message_out.talk(message)
+            self.talk(message)
         self.controller.is_waiting_for_input = True
 
         answer = self.controller.answer
@@ -59,15 +59,15 @@ class Command:
         while True:
             try:
                 i += 1
-                answer = self.fetch_input(timeout)
+                answer = self.fetch_input(ask_message, timeout)
                 return answer
             except InputTimeoutException:
-                self.controller.message_out.talk('すみません、聞き取れませんでした。')
+                self.talk('すみません、聞き取れませんでした。')
                 if i >= max_try:
-                    self.controller.message_out.talk('管理者に問い合わせてください')
+                    self.talk('管理者に問い合わせてください')
                     raise InputTimeoutException()
                 else:
-                    self.controller.message_out.talk('もう一度お願いします。')
+                    self.talk('もう一度お願いします。')
 
     def talk(self, message):
         self.controller.message_out.talk(message)
