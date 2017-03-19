@@ -60,4 +60,4 @@ class Julius:
                 continue
 
             if sentence1:
-                return pass1_best, sentence1
+                return sentence1, pass1_best
