@@ -17,7 +17,7 @@ class RegexCommandRouter:
              user.Register(controller)),
             (re.compile('^.*((本|備品)(|の|を)(登録|追加|買った|買ってきた)|新しい(本|備品)).*$'),
              rental.Register(controller)),
-            (re.compile('^.*(貸して|貸し出し|借りる|借ります|借りたい|レンタル|持ってく).*$'),
+            (re.compile('^.*(貸して|貸し出し|貸出|借りる|借ります|借りたい|レンタル|持ってく).*$'),
              rental.Borrow(controller)),
             (re.compile('^.*(返す|戻す|返却).*$'),
              rental.Return(controller)),
