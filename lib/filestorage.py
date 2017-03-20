@@ -21,14 +21,15 @@ class FileManager:
             if not os.path.exists(d):
                 os.makedirs(d)
 
-    def new_dir(self, data_type):
-        exisiting_ids = [int(id) for id in os.listdir(self.data_dirs[data_type]) if not id.startswith('.')]
-        new_id = max(exisiting_ids) + 1 if exisiting_ids else 0
-        dpath = os.path.join(self.data_dirs[data_type], str(new_id))
+    def new_dir(self, data_type, id=None):
+        if id is None:
+            exisiting_ids = [int(id) for id in os.listdir(self.data_dirs[data_type])]
+            id = max(exisiting_ids) + 1 if exisiting_ids else 0
+        dpath = os.path.join(self.data_dirs[data_type], str(id))
         return WorkingDirectory(dpath, self.data_dirs['work'])
 
-    def user_name(self, user_id):
-        name_file = os.path.join(self.data_dirs['user'], str(user_id), 'name.txt')
+    def get_name(self, data_type, user_id):
+        name_file = os.path.join(self.data_dirs[data_type], str(user_id), 'name.txt')
         with open(name_file) as fp:
             return fp.read().strip()
 
@@ -63,3 +64,11 @@ class WorkingDirectory:
     def clean(self):
         if os.path.exists(self.tmpdir):
             shutil.rmtree(self.tmpdir)
+
+    def read_text(self, fname):
+        fpath = os.path.join(self.final_path, fname)
+        if os.path.exists(fpath):
+            with open(fpath) as fp:
+                return fp.read()
+        else:
+            return None

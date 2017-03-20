@@ -18,7 +18,20 @@ Inception:
 """
 
 
-class FaceClassifier100x100I2(chainer.Chain):
+class ClassifierBase(chainer.Chain):
+
+    def classify(self, img, resize=True, bgr2rgb=True):
+        if resize:
+            img = cv2.resize(img, (100, 100))
+        t_img = img.transpose(2, 0, 1)  # width, height, channel -> channel, width, height
+        if bgr2rgb:
+            t_img = numpy.array([t_img[2], t_img[1], t_img[0]])  # BGR -> RGB
+        x = chainer.Variable(numpy.asarray([t_img], dtype=numpy.float32), volatile="on")
+        label = numpy.argmax(self.predict(x).data[0])
+        return label
+
+
+class FaceClassifier100x100I2(ClassifierBase):
     """ 100x100の顔画像を分類する、Inceptionの実装その2 """
 
     def __init__(self, n_classes, n_base_units=8):
@@ -103,78 +116,7 @@ class FaceClassifier100x100I2(chainer.Chain):
         self.inc3.train = value
 
 
-class FaceClassifier100x100I(chainer.Chain):
-    """ 100x100の顔画像を分類する、Inceptionの実装その1 """
-
-    def __init__(self, n_classes, n_base_units=8):
-        n_mid_units = n_base_units * 2
-        super().__init__(
-            # conv1: 100 -> (100 - 4) / 3 + 1 = 33
-            conv1 = L.Convolution2D(3, n_base_units, 4, stride=3),
-            # pool1: 33 -> (33 + 1*2 - 3) / 2 + 1 = 17
-            # inc1: 17 -> (17 + 1*2 - 3) / 2 + 1 = 9
-            inc1 = L.InceptionBN(
-                in_channels=n_base_units,
-                out1=0,
-                proj3=n_mid_units,
-                out3=n_mid_units,
-                proj33=n_mid_units,
-                out33=n_mid_units,
-                pooltype='max',
-                stride=2
-            ),
-            # inc2: 9 -> (9 + 1*2 - 3) / 2 + 1 = 5
-            inc2 = L.InceptionBN(
-                in_channels=n_mid_units * 2 + n_base_units,
-                out1=0,
-                proj3=n_mid_units,
-                out3=n_mid_units,
-                proj33=n_mid_units,
-                out33=n_mid_units,
-                pooltype='max',
-                stride=2
-            ),
-            fc1=L.Linear(5 * 5 * (n_mid_units * 2 + n_mid_units * 2 + n_base_units), 128),
-            fc2=L.Linear(128, n_classes)
-        )
-        self.n_units = 5 * 5 * (n_mid_units * 2 + n_mid_units * 2 + n_base_units)
-        self.train = True
-
-    def __call__(self, x, t):
-        h = self.predict(x)
-        loss = F.softmax_cross_entropy(h, t)
-        chainer.report({'loss': loss, 'accuracy': F.accuracy(h, t)}, self)
-        return loss
-
-    def predict(self, x):
-        h = self.reduct(x)
-        h = F.dropout(F.relu(self.fc1(h)), train=self.train)
-        h = self.fc2(h)
-        return h
-
-    def reduct(self, x):
-        h = F.max_pooling_2d(
-            F.relu(F.local_response_normalization(self.conv1(x))),
-            ksize=3,
-            stride=2,
-            pad=1
-        )
-        h = F.relu(self.inc1(h))
-        h = F.relu(self.inc2(h))
-        return h
-
-    @property
-    def train(self):
-        return self._train
-
-    @train.setter
-    def train(self, value):
-        self._train = value
-        self.inc1.train = value
-        self.inc2.train = value
-
-
-class FaceClassifier100x100A(chainer.Chain):
+class FaceClassifier100x100A(ClassifierBase):
     """ 100x100の顔画像を分類する、AlexNetを参考にした実装 """
     def __init__(self, n_classes, n_base_units=16):
         super().__init__(
@@ -219,7 +161,7 @@ class FaceClassifier100x100A(chainer.Chain):
         return h
 
 
-class FaceClassifier100x100_Relearn(chainer.Chain):
+class FaceClassifier100x100_Relearn(ClassifierBase):
     """ 学習済み顔分類モデルを読み込み、結合層だけを再学習する """
 
     def __init__(self, n_classes, n_base_units, learned_model_file, orig_model_class, orig_n_classes):
@@ -245,13 +187,3 @@ class FaceClassifier100x100_Relearn(chainer.Chain):
         h = F.dropout(F.relu(self.fc1(h)), train=self.train)
         h = self.fc2(h)
         return h
-
-    def classify(self, img, resize=True, bgr2rgb=True):
-        if resize:
-            img = cv2.resize(img, (100, 100))
-        t_img = img.transpose(2, 0, 1)  # width, height, channel -> channel, width, height
-        if bgr2rgb:
-            t_img = numpy.array([t_img[2], t_img[1], t_img[0]])  # BGR -> RGB
-        x = chainer.Variable(numpy.asarray([t_img], dtype=numpy.float32), volatile="on")
-        label = numpy.argmax(self.predict(x).data[0])
-        return label

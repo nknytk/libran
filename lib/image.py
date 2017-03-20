@@ -5,7 +5,7 @@ import sys
 import cv2
 
 sys.path.append(os.path.dirname(__file__))
-from cnn import face_models, re_train
+from cnn import face_models, re_train, pre_train
 
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), '../data')
 
@@ -17,14 +17,12 @@ class ImageProcessor:
         self.face_classifier = re_train.load_face_classifier(
             config.get('face_classifier_file', os.path.join(DEFAULT_DATA_DIR, 'face_model.pickle'))
         )
-        """
-        self.face_classifier = re_train.load_face_classifier(
-            model_class=config.get('face_classifier_class', 'FaceClassifier100x100A'),
-            re_trained_file=config.get('face_classifier_file', os.path.join(DEFAULT_DATA_DIR, 'face_model.npz')),
-            n_base_units=config.get('face_classifier_n_base_units', 16),
-            data_path=config.get('face_data', os.path.join(DEFAULT_DATA_DIR, 'user'))
+        self.book_classifier = pre_train.load_book_classifier(
+            model_class=config.get('book_classifier_class', 'FaceClassifier100x100A'),
+            n_base_units=config.get('book_classifier_n_base_units', 8),
+            data_path=config.get('book_data', os.path.join(DEFAULT_DATA_DIR, 'book')),
+            npz_file=config.get('book_classifier_file', os.path.join(DEFAULT_DATA_DIR, 'book_model.npz'))
         )
-        """
         self.black = (0, 0, 0)
         self.white = (255, 255, 255)
 
@@ -152,20 +150,35 @@ class ImageProcessor:
             clipped_img = cv2.resize(clipped_img, resize_to)
         return clipped_img
 
+    def resize(self, img, resize_to=(100, 100)):
+        return cv2.resize(img, resize_to)
+
     def train_face(self):
         """ 顔分類モデルを学習させる"""
         config = self.config
         self.face_classifier = re_train.train_face(
             model_class=config.get('face_classifier_class', 'FaceClassifier100x100A'),
             pre_trained_file=config.get('face_classifier_pre_trained_file',
-                                        os.path.join(DEFAULT_DATA_DIR, '../pre_trained_models/face/A_16.npz')),
+                                        os.path.join(DEFAULT_DATA_DIR, '../pre_trained_models/A_16.npz')),
             n_base_units=config.get('face_classifier_n_base_units', 16),
             data_path=config.get('face_data', os.path.join(DEFAULT_DATA_DIR, 'user')),
             re_trained_file=config.get('face_classifier_file', os.path.join(DEFAULT_DATA_DIR, 'face_model.pickle'))
         )
 
+    def train_book(self):
+        config = self.config
+        self.book_classifier = pre_train.train_book(
+            model_class=config.get('book_classifier_class', 'FaceClassifier100x100A'),
+            n_base_units=config.get('book_classifier_n_base_units', 8),
+            data_path=config.get('book_data', os.path.join(DEFAULT_DATA_DIR, 'book')),
+            out_file=config.get('book_classifier_file', os.path.join(DEFAULT_DATA_DIR, 'book_model.npz'))
+        )
+
     def who_is(self, face_img):
         return self.face_classifier.classify(face_img)
+
+    def which_book(self, book_img):
+        return self.book_classifier.classify(book_img)
 
 
 class ObjectNotFound(Exception):
