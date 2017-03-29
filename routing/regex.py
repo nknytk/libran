@@ -6,7 +6,7 @@ import sys
 
 base_dir = os.path.join(os.path.dirname(__file__), '..')
 sys.path.append(base_dir)
-from command import user, rental, photo, exit, greeting
+from command import user, rental, photo, exit, greeting, weather
 
 
 class RegexCommandRouter:
@@ -31,7 +31,9 @@ class RegexCommandRouter:
                 '(^(よっ|よう|おっす|押忍|おす|やあ)$'
                 '|^.*(おはよう|こんにちは|ハロー|こんばんは|ごきげんよう'
                 '|おやすみ|お疲れ様|ご苦労様|ただいま).*$)'),
-             greeting.Greet(controller))
+             greeting.Greet(controller)),
+            (re.compile('^(.+)[の|も]天[気候].*$'),
+             weather.WeatherForecast(controller))
         ]
 
     def routes(self, *texts):
