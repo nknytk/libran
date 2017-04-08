@@ -1,11 +1,16 @@
 # coding: utf-8
 
 import os
+import re
 import sys
 from datetime import datetime
 from time import sleep
+from MeCab import Tagger
+import romkan
 sys.path.append(os.path.dirname(__file__))
 from base import Command
+
+tagger = Tagger()
 
 
 class EquipmentRentalBase(Command):
@@ -33,6 +38,7 @@ class EquipmentRentalBase(Command):
                     continue
                 else:
                     self.push_message('本を特定できませんでした。')
+                    return {}
 
             book_img = self.controller.image_processor.clip(img, book_rect)
             orig_img = img.copy()
@@ -83,12 +89,12 @@ class Register(EquipmentRentalBase):
                 else:
                     self.talk('失礼しました')
 
-            resized_book = self.controller.image_processor.reisze(info['book_img'], (100, 100))
+            resized_book = self.controller.image_processor.resize(info['book_img'], (100, 100))
             dataset = self.controller.storage.new_dir('book')
             dataset.save_img('orig.jpg', info['orig_img'])
             dataset.save_img('clipped_book.jpg', resized_book)
             dataset.save_text('name.txt', book_name)
-            dataset.save_text('user.txt', info['user_name'])
+            dataset.save_text('user.txt', str(info['user_id']))
             dataset.commit()
 
             self.talk('{}の登録受付が完了しました。'.format(book_name))
@@ -156,7 +162,7 @@ class Return(EquipmentRentalBase):
             return
 
         book_id = self.controller.image_processor.which_book(info['book_img'])
-        book_name = self.controller.storage.book_name(book_id)
+        book_name = self.controller.storage.get_name('book', book_id)
 
         data_dir = self.controller.storage.new_dir('rental', book_id)
         rental_user = data_dir.read_text('user.txt')
@@ -164,7 +170,7 @@ class Return(EquipmentRentalBase):
             self.talk('その本は元々借りられていないので、返却手続きの必要はありません')
             return
 
-        if int(rental_user) == info['user_name']:
+        if int(rental_user) == info['user_id']:
             msg = '{}さんが{}を返却しました'.format(info['user_name'], book_name)
         else:
             rental_user_name = self.controller.storage.get_name('user', int(rental_user))
@@ -176,3 +182,84 @@ class Return(EquipmentRentalBase):
 
         self.push_message('{}さんからの{}の返却を受け付けました'.format(info['user_name'], book_name))
         self.controller.notifier.notify('貸し出し', msg, data_dir.files())
+
+
+class StockSearch(Command):
+
+    ptn1 = re.compile('^(.+)(は|って|)(誰|どなた)[がかの](持って|借りて|思って).*$')
+    ptn2 = re.compile('^(.+)(は|って|の|)(在庫あ|残って|貸し出し|借りられて).*$')
+
+    def __init__(self, controller):
+        super().__init__(controller)
+        self._book_info = {}
+
+    def command(self, *words):
+        book_description = self._extract_book(words[0])
+        if not book_description:
+            return
+
+        self._update_book_info()
+        book_info = self._search_book(book_description)
+        if not book_info:
+            self.talk('{}に関する本が見つかりませんでした'.format(book_description))
+            return
+
+        book_id, book_name, score = book_info
+        rental_user_file = os.path.join(self.controller.storage.data_dirs['rental'], book_id, 'user.txt')
+        if os.path.exists(rental_user_file):
+            with open(rental_user_file) as fp:
+                user_id = fp.read()
+            user_name = self.controller.storage.get_name('user', user_id)
+            self.talk('{}は{}さんに貸し出し中です'.format(book_name, user_name))
+        else:
+            self.talk('{}は在庫があります'.format(book_name))
+
+    def _extract_book(self, txt):
+        m = self.ptn1.match(txt)
+        if m:
+            return m.group(1).rstrip('はっての')
+        m = self.ptn2.match(txt)
+        if m:
+            return m.group(1).rstrip('はっての')
+
+    def _update_book_info(self):
+        book_ids = os.listdir(self.controller.storage.data_dirs['book'])
+        for id in book_ids:
+            if id in self._book_info:
+                pass
+
+            book_name = self.controller.storage.get_name('book', id)
+            words, reading_tokens = self._tokenize(book_name)
+            self._book_info[id] = (book_name, words, reading_tokens)
+
+    def _search_book(self, book_description):
+        words, reading_tokens = self._tokenize(book_description)
+        candidates = []
+        for id in self._book_info:
+            book_name, book_words, book_readings = self._book_info[id]
+            match_score = len(book_words & words) + len(reading_tokens & book_readings) * 0.2
+            if match_score:
+                candidates.append((id, book_name, match_score))
+
+        if candidates:
+            candidates.sort(key=lambda x: x[2], reverse=True)
+            return candidates[0]
+        else:
+            None
+
+    def _tokenize(self, txt):
+        raw_words = set()
+        reading_kana = []
+
+        words = tagger.parse(txt).splitlines()
+        for word in words:
+            fields = word.split(',')
+            if len(fields) < 6:
+                continue
+            raw_words.add(fields[0].split('\t')[0])
+            reading_kana.append(fields[-2])
+
+        reading_rome = romkan.to_roma(''.join(reading_kana))
+        reading_tokens = set([reading_rome[i:i+4] for i in range(len(reading_rome)-4)])
+
+        return raw_words, reading_tokens

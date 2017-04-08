@@ -12,7 +12,6 @@ class Register(Command):
     def command(self, *words):
         self.talk('新規ユーザーを登録します。')
 
-        datasets_to_commit = []
         while True:
 
             # 名前の特定と確認
@@ -31,7 +30,7 @@ class Register(Command):
             # 顔写真をデータに追加
             self._take_photos(new_dataset)
 
-            datasets_to_commit.append(new_dataset)
+            new_dataset.commit()
             self.talk(name + 'さんの登録を受け付けました。')
 
             to_continue = self.ask_with_retry('他のユーザーも登録しますか?')
@@ -39,11 +38,6 @@ class Register(Command):
                 continue
             else:
                 break
-
-        # これまで取得してきたデータを永続化
-        for dataset in datasets_to_commit:
-            dataset.commit()
-        self.talk('登録を受け付けました。ご協力、ありがとうございました')
 
         shoud_study_now = self.ask_with_retry('すぐに勉強したほうが良いですか？')
         if self.controller.message_processor.is_yes(shoud_study_now):
@@ -55,7 +49,7 @@ class Register(Command):
         if self.controller.message_processor.is_cancel(response):
             self.cancel()
         name = self.controller.message_processor.remove_prefix(response[0], ('私は', '僕は', '俺は'))
-        name = self.controller.message_processor.remove_suffix(name, ('です', 'だよ'))
+        name = self.controller.message_processor.remove_suffix(name, ('です', 'でーす', 'だよ'))
         return name
 
     def _take_photos(self, dataset):
@@ -98,6 +92,9 @@ class Register(Command):
                 else:
                     remaining_retry -= 1
 
+            if face_rect is None:
+                print('Failed to detect face-{}. skip.'.format(tag))
+                continue
             face_img = self.controller.image_processor.clip(img, face_rect, resize_to=(100, 100))
             dataset.save_img(tag + '.jpg', img)
             dataset.save_img(tag + '_face.jpg', face_img)

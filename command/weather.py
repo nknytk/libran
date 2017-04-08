@@ -319,7 +319,7 @@ class WeatherForecast(Command):
             return
 
         forecast_table = self.dl_forecast_table(area_info['area_id'])
-        weather = self.extract_wheather(forecast_table, area_info['row_index'], offset)
+        weather = self.extract_weather(forecast_table, area_info['row_index'], offset)
         self.area = where
 
         txt = self.to_text(when, where, weather)
@@ -349,24 +349,25 @@ class WeatherForecast(Command):
         return soup.find('table', id='forecasttablefont')
 
 
-    def extract_wheather(self, forecast_table, row_index=0, date_offset=0):
-        wheather_cells = forecast_table.find_all('th', class_='weather')
-        target_cell = wheather_cells[row_index * 3 + date_offset]
-        wheather = {'wheather': target_cell.find('img').get('title')}
+    def extract_weather(self, forecast_table, row_index=0, date_offset=0):
+        weather_cells = forecast_table.find_all('th', class_='weather')
+        target_cell = weather_cells[row_index * 3 + date_offset]
+        weather = {'weather': target_cell.find('img').get('title')}
 
         temperature_cells = forecast_table.find_all('td', class_='temp')
         target_cell = temperature_cells[row_index * 3 + date_offset]
         min_temp_cell = target_cell.find('td', class_='min')
         if min_temp_cell:
-            wheather['min'] = min_temp_cell.text.strip()
+            weather['min'] = min_temp_cell.text.strip()
         min_temp_cell = target_cell.find('td', class_='max')
         if min_temp_cell:
-            wheather['max'] = min_temp_cell.text.strip()
+            weather['max'] = min_temp_cell.text.strip()
 
-        return wheather
+        return weather
 
     def to_text(self, when, where, weather):
-        txt = '気象庁によると、{}の{}の天気は{}'.format(when, where, weather['wheather'])
+        weather['weather'] = weather['weather'].replace('雨', 'あめ').replace('後', 'のち')
+        txt = '気象庁によると、{}の{}の天気は{}'.format(when, where, weather['weather'])
         if weather.get('min'):
             txt += '、最低気温は' + weather['min'].replace('-', 'マイナス')
         if weather.get('max'):
