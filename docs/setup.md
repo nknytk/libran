@@ -119,11 +119,12 @@ unzip dictation-kit-v4.4.zip
 ```
 
 Juliusを起動し、`<<<　please speak　>>>`と表示されたら話してみる。  
-認識結果が標準出力に表示されたら成功。
 
 ```
 AUDIODEV=/dev/dsp1 ALSADEV="plughw:1,0" ./julius-4.4.2/julius/julius -C ./julius-4.4.2/dictation-kit-v4.4/main.jconf -C ./julius-4.4.2/dictation-kit-v4.4/am-gmm.jconf -nostrip
 ```
+
+認識結果が標準出力に表示されたら成功。
 
 ## OpenJtalk
 
